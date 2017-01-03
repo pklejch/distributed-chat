@@ -1,3 +1,2 @@
-from .node import main
-
+from .chat import main
 main()
