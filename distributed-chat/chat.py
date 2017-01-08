@@ -200,14 +200,17 @@ class MessageHandler(socketserver.BaseRequestHandler):
 
         message = pickle.loads(data)
 
+        # its a DIE message, return
         if message['state'] == 'DIE':
             if verbose_level > 0:
                 info_print("RECEIVED DIE")
             return
+        # its a PING message, put it in the ping_queue
         elif message['state'] == 'PING':
             if verbose_level > 1:
                 debug_print("RECEIVED PING MESSAGE from: " + message['from'])
             node.ping_queue.put(message)
+        # some other message (MSG, CLOSE, ELECTION, ...) put in the message queue
         else:
             node.queue.put(message)
 
@@ -227,9 +230,7 @@ class Node:
         self.leader = False
         self.leader_id = 0
         self.voting = False
-
         self.clock = 0
-
         self.server = Server(id, ip, port)
         self.client = Client(id, 'CONNECTING', '')
         self.pinger = Pinger()
@@ -323,6 +324,7 @@ class Client(threading.Thread):
     def create_message(self, state, body):
         global node
         if state == 'PING':
+            # dont increment clock
             message = {
                 'from': node.ip + ":" + node.port,
                 'to': node.ip_next + ":" + node.port_next,
