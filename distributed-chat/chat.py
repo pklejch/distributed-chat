@@ -290,11 +290,16 @@ class Server(threading.Thread):
             error_print("Cannot start server, perhaps port is in use.")
             global error
             error = 1
-
-        self.socket.daemon_threads = True
+        try:
+            self.socket.daemon_threads = True
+        except AttributeError:
+            pass
 
     def run(self):
-        self.socket.serve_forever()
+        try:
+            self.socket.serve_forever()
+        except AttributeError:
+            pass
         info_print("Server exiting...")
 
 
