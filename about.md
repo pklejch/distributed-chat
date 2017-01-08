@@ -76,12 +76,19 @@ Tento algoritmus je spuštěn při třech událostech:
   - Uzel se odpojil ze systému.
   - Uzel neočekávaně umřel.
 
+## Logování
+Všechny události jsou logovány do souboru, který se jmenuje IDuzlu.log. Závažné události jsou logovány také na chybový výstup.
+Přijaté textové zprávy jsou vypsány na standardní výstup.
+
+Jak moc podrobné zprávy se budou vypisovat se nastavuje pomocí přepínače -v. 
+Tento přepínač lze zadat vícekrát pro více podrobný výstup (-vv).
+
 ## Jak nainstalovat a spustit
 1. Rozbalit archiv.
 2. Přesunout se do rozbaleného archivu.
 3. Vytvořit virtuální prostředí pro Python. ```python3 -m venv env```
 4. Aktivovat virtuální prostředí. ```. env/bin/activate```
 5. Nainstalovat závislosti. ```python -m pip install -r requirements.txt```
-6. Spustit pomocí: ```python -m distributed-chat cli IP:PORT [-i IPcíle:PORTcíle]```
+6. Spustit pomocí: ```python -m distributed-chat cli -vv IP:PORT [-i IPcíle:PORTcíle]```
 
 
