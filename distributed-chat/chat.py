@@ -1,31 +1,45 @@
-import os
-import sys
-#from asyncio.queues import Queue
-
-sys.path.append(str(os.path.abspath(os.path.dirname(__file__))))
 import click
-
 import hashlib
-
+import logging
 import threading
 import socketserver
 import pickle
 import socket
 import time
-import tty, sys, termios
+import tty
+import sys
+import termios
+
 from queue import Queue
 
 node = None
 verbose_level = 0
+rootLogger = logging.getLogger()
 
+error = 0
+
+# for history in input()
 try:
     import readline
-except:
+except ImportError:
     # readline not available
     pass
 
-def create_id(ip,port):
-    return hashlib.sha224((ip+":"+port).encode('ascii')).hexdigest()
+
+def create_id(ip, port):
+    return hashlib.sha224((ip + ":" + port).encode('ascii')).hexdigest()
+
+
+def validate_ip(ctx, param, value):
+
+    if value is None:
+        return
+
+    try:
+        _, _ = value.split(":")
+        return value
+    except ValueError:
+        raise click.BadParameter("IP and port must be in the following format: <ip/hostname>:<port>")
 
 
 @click.group()
@@ -35,79 +49,99 @@ def interface():
 
 @interface.command()
 def gui():
+    # not implemented yet
     raise Exception
 
 
 @interface.command()
-@click.argument("ip_port")
-@click.option("--ip_port_next", "-i", help="Ip and port.")
+@click.argument("ip_port",  callback=validate_ip)
+@click.option("--ip_port_next", "-i", help="Ip and port.", callback=validate_ip)
 @click.option('--verbose', '-v', count="True", help='Enables verbose output.')
 def cli(ip_port, ip_port_next, verbose):
-    ip, port = ip_port.split(":")
     global verbose_level
-    verbose_level=verbose
+    global rootLogger
+    verbose_level = verbose
 
-
-    leader=False
+    ip, port = ip_port.split(":")
+    leader = False
     if ip_port_next is None:
         leader = True
         ip_port_next = ip_port
 
     ip_next, port_next = ip_port_next.split(":")
 
+    # calculate ID
+    node_id = hashlib.sha224(ip_port.encode('ascii')).hexdigest()
 
+    # init logger
+    log_formatter = logging.Formatter("%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s")
+    file_handler = logging.FileHandler("{0}/{1}.log".format('.', node_id))
+    file_handler.setFormatter(log_formatter)
+    file_handler.setLevel(logging.DEBUG)
+    rootLogger.addHandler(file_handler)
 
-    id = hashlib.sha224(ip_port.encode('ascii')).hexdigest()
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(log_formatter)
+    console_handler.setLevel(logging.ERROR)
+    rootLogger.addHandler(console_handler)
 
+    rootLogger.setLevel(logging.DEBUG)
+
+    # create node
     global node
-    node = Node(id,ip,ip_next,port,port_next, id)
+    node = Node(node_id, ip, ip_next, port, port_next, node_id)
 
     # initialize leader
     if leader:
         node.state = 'ALONE'
         node.leader = True
-        node.leader_id = id
-    node.start()
-    debug_print("Enter name of your node: ")
-    node_name = input(">\n")
+        node.leader_id = node_id
+
+    try:
+        node.start()
+    except:
+        error_print("Error while starting node.")
+        exit(1)
+
+    print("Enter name of your node: ")
+    node_name = input("> ")
     node.name = node_name
 
+    # get char
     getch = GetchUnix()
 
-    first=True
+    first = True
     try:
         while True:
+
+            if error:
+                error_print("Something went wrong.")
+                exit(1)
+
             if first:
-                debug_print("To send message press Enter, to quit press ESC")
-                first=False
+                print("To send message press Enter, to quit press ESC")
+                first = False
 
             pressed_key = ord(getch.get_key())
 
-            #pressed_key = 27
+            # ESC = 27, Ctrl-C = 3
 
             # ESC or Ctrl-C
             if pressed_key == 27 or pressed_key == 3:
                 raise KeyboardInterrupt
             # Enter
             elif pressed_key == 13:
-                sendMessage(node_name)
-
-
+                send_message(node_name)
 
     except KeyboardInterrupt:
-        debug_print("Pressed ESC or Ctrl+C, exiting....")
+        print("Pressed ESC or Ctrl+C, exiting....")
 
-        # TODO graceful exit
+        # send closing message
+        end_msg = node.client.create_message('CLOSE', node.ip_next + ":" + node.port_next)
+        end_msg['to'] = node.id
+        node.client.send_data(pickle.dumps(end_msg, -1))
 
-        print(threading.active_count())
-
-
-        # close server handling thread
-        endMsg = node.client.create_message('CLOSE','')
-        endMsg['to'] = node.id
-        node.client.send_data(pickle.dumps(endMsg,-1))
-
-        #TODO BETTER
+        # TODO BETTER
 
         time.sleep(2)
         # close client thread
@@ -117,27 +151,32 @@ def cli(ip_port, ip_port_next, verbose):
         node.server.socket.shutdown()
         node.server.socket.server_close()
 
-        print(threading.active_count())
-
-
         exit(0)
 
-def debug_print(msg='',end=''):
-    print(msg,end='')
-    print('\n',end='')
-    sys.stdout.flush()
 
-def sendMessage(node_name):
-    debug_print("Enter name or ID of target node: ")
-    node_id = input(">\n")
-    debug_print("Message: ")
-    msg = input(">\n")
+def info_print(msg=''):
+    global rootLogger
+    rootLogger.info(msg)
 
-    # TODO for debug
-    if msg == 'exit':
-        raise KeyboardInterrupt
+
+def debug_print(msg=''):
+    global rootLogger
+    rootLogger.debug(msg)
+
+
+def error_print(msg=''):
+    global rootLogger
+    rootLogger.error(msg)
+
+
+def send_message(node_name):
+    print("Enter name or ID of target node: ")
+    node_id = input("> ")
+    print("Message: ")
+    msg = input("> ")
+
     if len(msg) > 4050:
-        debug_print("Max length of message is 4050 characters.")
+        print("Max length of message is 4050 characters.")
         return
 
     new_msg = node.client.create_message('MSG', node_name + " says: " + msg)
@@ -146,36 +185,37 @@ def sendMessage(node_name):
     new_msg['to'] = node_id
     node.client.send_data(pickle.dumps(new_msg, -1))
 
+
 def main():
     interface()
 
 
-class message_handler(socketserver.BaseRequestHandler):
+class MessageHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
         global node
-        self.data = self.request.recv(4096)
-        if len(self.data) == 0:
+        data = self.request.recv(4096)
+        if len(data) == 0:
             return
 
-        message = pickle.loads(self.data)
+        message = pickle.loads(data)
 
         if message['state'] == 'DIE':
             if verbose_level > 0:
-                debug_print("RECEIVED DIE")
+                info_print("RECEIVED DIE")
             return
         elif message['state'] == 'PING':
             if verbose_level > 1:
-                debug_print("RECEIVED PING MESSAGE from: "+message['from'])
+                debug_print("RECEIVED PING MESSAGE from: " + message['from'])
             node.ping_queue.put(message)
         else:
             node.queue.put(message)
 
 
 class Node:
-    def __init__(self, id, ip, ip_next, port, port_next, name):
+    def __init__(self, node_id, ip, ip_next, port, port_next, name):
 
-        self.id = id
+        self.id = node_id
         self.state = 'DISCONNECTED'
         self.ip = ip
         self.ip_next = ip_next
@@ -183,18 +223,21 @@ class Node:
         self.port_next = port_next
         self.queue = Queue()
         self.ping_queue = Queue()
-        self.name=name
-        self.leader=False
-        self.leader_id=0
+        self.name = name
+        self.leader = False
+        self.leader_id = 0
         self.voting = False
 
-        self.server = Server(id, self)
-        self.client = Client(id, self, 'CONNECTING', '')
-        self.pinger = Pinger(self)
+        self.clock = 0
+
+        self.server = Server(id, ip, port)
+        self.client = Client(id, 'CONNECTING', '')
+        self.pinger = Pinger()
 
     def debug(self, message):
         if verbose_level > 0:
             debug_print("***************")
+            debug_print("Timestamp: " + str(self.clock))
             debug_print("ID: " + str(self.id))
             debug_print("Name: " + self.name)
             debug_print("Status: " + self.state)
@@ -206,23 +249,32 @@ class Node:
             debug_print(message)
             debug_print("***************")
 
+    def increment_clock(self):
+        mutex = threading.Lock()
+        with mutex:
+            self.clock += 1
+        return self.clock
+
+    def set_clock(self, other_clock):
+        mutex = threading.Lock()
+        with mutex:
+            self.clock = max(self.clock, other_clock) + 1
+
     def start(self):
         self.server.start()
         self.client.start()
         self.pinger.start()
 
 
-
-
 class Server(threading.Thread):
     allow_reuse_address = True
-    def __init__(self, id, node):
 
+    def __init__(self, node_id, ip, port):
         threading.Thread.__init__(self)
         self.name = 'Server'
-        self.id = id
-        self.ip = node.ip
-        self.port = int(node.port)
+        self.id = node_id
+        self.ip = ip
+        self.port = int(port)
         self.daemon = True
         self._create_socket()
 
@@ -230,50 +282,64 @@ class Server(threading.Thread):
         if verbose_level > 0:
             debug_print("Starting server on: "+self.ip+":"+str(self.port))
         socketserver.ThreadingTCPServer.allow_reuse_address = True
-        self.socket = socketserver.ThreadingTCPServer((self.ip,self.port), message_handler)
+
+        try:
+            self.socket = socketserver.ThreadingTCPServer((self.ip, self.port), MessageHandler)
+        except OSError:
+            error_print("Cannot start server, perhaps port is in use.")
+            global error
+            error = 1
+
         self.socket.daemon_threads = True
 
     def run(self):
         self.socket.serve_forever()
-        debug_print("Server exiting...")
-
-
-
+        info_print("Server exiting...")
 
 
 class Client(threading.Thread):
-    def __init__(self, id, node, state, body):
+    def __init__(self, node_id, state, body):
 
         threading.Thread.__init__(self)
         self.name = 'Client'
         self.daemon = True
         self.state = state
         self.body = body
-        self.node = node
-        self.id = id
-
+        self.id = node_id
+        self.socket = None
 
     def create_socket(self):
+        global node
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.node.ip_next, int(self.node.port_next)))
+        self.socket.connect((node.ip_next, int(node.port_next)))
 
     def close_socket(self):
-        #self.socket.shutdown(2)
         self.socket.close()
 
-    def send_data(self,data):
+    def send_data(self, data):
         self.create_socket()
         self.socket.sendall(data)
 
-
     def create_message(self, state, body):
-        message = {
-            'from' : self.node.ip + ":" + self.node.port,
-            'to' : self.node.ip_next+ ":" +self.node.port_next,
-            'state':  state,
-            'body': body,
-            'at_leader' : False
-        }
+        global node
+        if state == 'PING':
+            message = {
+                'from': node.ip + ":" + node.port,
+                'to': node.ip_next + ":" + node.port_next,
+                'state':  state,
+                'body': body,
+                'at_leader': False,
+                'clock': node.clock
+            }
+        else:
+            message = {
+                'from': node.ip + ":" + node.port,
+                'to': node.ip_next + ":" + node.port_next,
+                'state':  state,
+                'body': body,
+                'at_leader': False,
+                'clock': node.increment_clock()
+            }
 
         return message
 
@@ -281,9 +347,16 @@ class Client(threading.Thread):
         global node
         time.sleep(0.5)
 
-        #initial message
-        message = self.create_message(self.state,self.body)
-        self.send_data(pickle.dumps(message,-1))
+        # initial message
+        message = self.create_message(self.state, self.body)
+        try:
+            self.send_data(pickle.dumps(message, -1))
+        except:
+            # cannot init connect
+            global error
+            error_print("Cant connect to target node, perhaps target node is not running.")
+            error = 1
+            return
 
         while True:
             message = node.queue.get()
@@ -294,27 +367,26 @@ class Client(threading.Thread):
                 return
 
     def display_message(self, msg):
-        debug_print()
-        debug_print('!!! NEW MESSAGE ARRIVED !!!')
-        debug_print(msg)
-        debug_print('>', end='')
-
-    def chang_roberts(self):
-        pass
+        sys.stdout.write('\n')
+        sys.stdout.write('\r!!! NEW MESSAGE ARRIVED !!!\n')
+        sys.stdout.write("\r"+msg+"\n")
+        sys.stdout.write('\r')
 
     def initiate_voting(self):
         global node
         node.voting = True
 
-        voting_message = self.create_message('ELECTION','')
+        voting_message = self.create_message('ELECTION', '')
         voting_message['from'] = node.id
-        self.send_data(pickle.dumps(voting_message,-1))
+        self.send_data(pickle.dumps(voting_message, -1))
 
     def do_task(self, message):
         global node
         if message is None:
-            debug_print("EXITING client")
+            info_print("EXITING client")
             return True
+
+        node.set_clock(message['clock'])
 
         if message['state'] == 'CONNECTING':
             if message['from'] != message['to']:
@@ -332,15 +404,11 @@ class Client(threading.Thread):
                 node.ip_next = ip
                 node.port_next = port
 
-
-
                 self.send_data(pickle.dumps(answer, -1))
-
 
             else:
                 if verbose_level > 0:
                     debug_print('Connected to itself')
-
 
         elif message['state'] == 'SET':
             if verbose_level > 0:
@@ -355,13 +423,9 @@ class Client(threading.Thread):
             # MUTEX TODO
             node.ip_next = ip
             node.port_next = port
-            #node.client.close_socket()
-
-            #node.client.create_socket()
             node.state = 'CONNECTED'
             answer = node.client.create_message('DONE', '')
             self.send_data(pickle.dumps(answer, -1))
-
 
         elif message['state'] == 'DONE':
 
@@ -375,7 +439,7 @@ class Client(threading.Thread):
             # if im the leader
             if node.leader:
                 # if its message for me, display it
-                if (message['to'] == node.id or message['to'] == node.name):
+                if message['to'] == node.id or message['to'] == node.name:
                     self.display_message(message['body'])
                 # if its message for unknown user
                 elif message['at_leader']:
@@ -390,51 +454,36 @@ class Client(threading.Thread):
                     self.display_message(message['body'])
                 # if its not for me, just pass it to next node
                 else:
-                    self.send_data(pickle.dumps(message,-1))
+                    self.send_data(pickle.dumps(message, -1))
 
         elif message['state'] == 'CLOSE':
-            debug_print("GOT CLOSING MESSAGE")
-            next_id = create_id(node.ip_next,node.port_next)
+            debug_print("RECEIVED CLOSING MESSAGE")
+            next_id = create_id(node.ip_next, node.port_next)
 
             # message is for me
             if message['to'] == node.id:
-                die_msg = self.create_message('DIE','')
-                self.send_data(pickle.dumps(die_msg,-1))
+                die_msg = self.create_message('DIE', '')
+                self.send_data(pickle.dumps(die_msg, -1))
 
             # message is for next node (the right one)
             elif message['to'] == next_id:
-                get_message = self.create_message('GET_NEXT','')
-                get_message['from'] = node.id
-                self.send_data(pickle.dumps(get_message,-1))
-            # its not for me or next node, pass it to next node
-            else:
-                self.send_data(pickle.dumps(message, -1))
-
-
-        elif message['state'] == 'GET_NEXT':
-            msg = self.create_message('PREPARE_TO_DIE',node.ip_next+":"+node.port_next)
-            msg['to'] = message['from']
-            self.send_data(pickle.dumps(msg, -1))
-
-        elif message['state'] == 'PREPARE_TO_DIE':
-            if message['to'] == node.id:
                 ip_port = message['body']
                 ip, port = ip_port.split(":")
 
-
-                die_msg = self.create_message('DIE','')
-                self.send_data(pickle.dumps(die_msg,-1))
+                die_msg = self.create_message('DIE', '')
+                self.send_data(pickle.dumps(die_msg, -1))
 
                 node.ip_next = ip
                 node.port_next = port
 
                 self.initiate_voting()
+            # its not for me or next node, pass it to next node
             else:
                 self.send_data(pickle.dumps(message, -1))
 
         elif message['state'] == 'WHO_IS_DEAD':
             try:
-                self.send_data(pickle.dumps(message,-1))
+                self.send_data(pickle.dumps(message, -1))
             except:
                 # my next node is dead, repair connection
                 ip_port = message['body']
@@ -442,9 +491,9 @@ class Client(threading.Thread):
                 node.ip_next = ip
                 node.port_next = port
 
-                debug_print("TRYING TO REPAIR")
-                msg = self.create_message('REPAIRED','')
-                self.send_data(pickle.dumps(msg,-1))
+                error_print("I found dead node, trying to repair connection.")
+                msg = self.create_message('REPAIRED', '')
+                self.send_data(pickle.dumps(msg, -1))
 
         elif message['state'] == 'REPAIRED':
             if verbose_level > 0:
@@ -453,21 +502,21 @@ class Client(threading.Thread):
             self.initiate_voting()
 
         elif message['state'] == 'ELECTION':
-            if int(message['from'],16) > int(node.id,16):
+            if int(message['from'], 16) > int(node.id, 16):
                 node.voting = True
                 # pass message to next node
-                self.send_data(pickle.dumps(message,-1))
-            if (int(message['from'],16) < int(node.id,16)) and not node.voting:
-                voting_message = self.create_message('ELECTION','')
+                self.send_data(pickle.dumps(message, -1))
+            if (int(message['from'], 16) < int(node.id, 16)) and not node.voting:
+                voting_message = self.create_message('ELECTION', '')
                 voting_message['from'] = node.id
-                self.send_data(pickle.dumps(voting_message,-1))
+                self.send_data(pickle.dumps(voting_message, -1))
 
                 node.voting = True
 
-            if int(message['from'],16) == int(node.id,16):
-                elected_message = self.create_message('ELECTED','')
+            if int(message['from'], 16) == int(node.id, 16):
+                elected_message = self.create_message('ELECTED', '')
                 elected_message['from'] = node.id
-                self.send_data(pickle.dumps(elected_message,-1))
+                self.send_data(pickle.dumps(elected_message, -1))
 
         elif message['state'] == 'ELECTED':
             node.leader_id = message['from']
@@ -475,21 +524,22 @@ class Client(threading.Thread):
             node.leader = True
 
             if verbose_level > 0:
-                debug_print("NEW LEADER IS "+node.leader_id)
+                debug_print("NEW LEADER IS " + node.leader_id)
             if node.id != message['from']:
                 node.leader = False
-                # pass message to next
-                self.send_data(pickle.dumps(message,-1))
+                # pass message to next node
+                self.send_data(pickle.dumps(message, -1))
 
         else:
             debug_print("UNKNOWN MESSAGE: ")
-            debug_print(str(self.data))
+            debug_print(str(message))
 
         node.debug(message)
         return False
 
+
 class Pinger(threading.Thread):
-    def __init__(self,node):
+    def __init__(self):
         threading.Thread.__init__(self)
         self.interval = 2
         self.errors = 0
@@ -505,9 +555,9 @@ class Pinger(threading.Thread):
         time.sleep(1)
 
         while True:
-            p = node.client.create_message('PING','')
+            p = node.client.create_message('PING', '')
             try:
-                node.client.send_data(pickle.dumps(p,-1))
+                node.client.send_data(pickle.dumps(p, -1))
             except:
                 pass
 
@@ -516,11 +566,11 @@ class Pinger(threading.Thread):
             # number of tries exceeded limit
             # start sending who is dead message
             if self.errors > self.attempts:
-                debug_print("NODE BEHIND ME IS DEAD")
-                dead_message = node.client.create_message('WHO_IS_DEAD',node.ip+":"+node.port)
+                error_print("NODE BEHIND ME IS DEAD")
+                dead_message = node.client.create_message('WHO_IS_DEAD', node.ip + ":" + node.port)
                 try:
-                    node.client.send_data(pickle.dumps(dead_message,-1))
-                #next node is dead, im alone
+                    node.client.send_data(pickle.dumps(dead_message, -1))
+                # next node is dead, im alone
                 except:
                     node.queue.put(dead_message)
                 self.errors = 0
@@ -531,8 +581,7 @@ class Pinger(threading.Thread):
                 node.ping_queue.task_done()
             # there is nothing in the ping queue, increment error counter
             else:
-                self.errors+=1
-
+                self.errors += 1
 
 
 class GetchUnix:
@@ -547,5 +596,5 @@ class GetchUnix:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()
