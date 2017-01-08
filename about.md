@@ -39,6 +39,7 @@ Pokud uzel pošle textovou zprávu jinému uzlu, je tato zpráva nejprve přepos
 Vůdce označí tuto zprávu a následně je tato zpráva přeposílána dokud nedorazí k příjemci. Příjemce si zprávu poté zobrazí.
 
 ## Uzel
+![Diagram uzlu](uzel.png)
 
 Každý uzel s skládá z několika částí:
   - Server
