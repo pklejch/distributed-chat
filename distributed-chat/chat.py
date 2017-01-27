@@ -12,11 +12,15 @@ import termios
 
 from queue import Queue
 
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
+from PyQt5 import QtWidgets
+
 node = None
 verbose_level = 0
 rootLogger = logging.getLogger()
-
+gui = False
 error = 0
+
 
 # for history in input()
 try:
@@ -41,6 +45,38 @@ def validate_ip(ctx, param, value):
     except ValueError:
         raise click.BadParameter("IP and port must be in the following format: <ip/hostname>:<port>")
 
+def send_message_from_qui(window):
+    node_id = window.findChild(QtWidgets.QLineEdit,'node_id').text()
+    msg = window.findChild(QtWidgets.QPlainTextEdit, 'message').toPlainText()
+
+    new_msg = node.client.create_message('MSG', node.name + " says: " + msg)
+
+    # replace target
+    new_msg['to'] = node_id
+    node.client.send_data(pickle.dumps(new_msg, -1))
+
+
+class QPlainTextEditLogger(logging.StreamHandler):
+    def __init__(self, window):
+        super().__init__()
+        self.window = window
+
+    @pyqtSlot(str)
+    def emit(self, record):
+        msg = self.format(record)
+        recv_messages = self.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
+        recv_messages.appendPlainText(msg)
+
+
+@pyqtSlot(str, name='msg')
+def message_received(msg):
+    recv_messages = node.window.findChild(QtWidgets.QPlainTextEdit, 'recv_messages')
+    recv_messages.appendPlainText(msg)
+
+@pyqtSlot(str, name='log')
+def log_received(msg):
+    recv_messages = node.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
+    recv_messages.appendPlainText(msg)
 
 @click.group()
 def interface():
@@ -49,8 +85,41 @@ def interface():
 
 @interface.command()
 def gui():
-    # not implemented yet
-    raise Exception
+    global verbose_level
+    verbose_level = 2
+    global gui
+    gui = True
+    from gui import gui_main
+    from PyQt5 import QtWidgets
+    [app, window, ip, port, ip_next, port_next, leader, name] = gui_main()
+    node_id = hashlib.sha224((ip + ":" + port).encode('ascii')).hexdigest()
+
+
+    # create node
+    global node
+    node = Node(node_id, ip, ip_next, port, port_next, node_id, window)
+
+    node.name = name
+    # initialize leader
+    if leader:
+        node.state = 'ALONE'
+        node.leader = True
+        node.leader_id = node_id
+
+    try:
+        node.start()
+    except:
+        error_print("Error while starting node.")
+        exit(1)
+
+    btn = window.findChild(QtWidgets.QPushButton,'button_send')
+    btn.clicked.connect(lambda: send_message_from_qui(window))
+
+    node.signal_message.connect(message_received)
+    node.signal_log_message.connect(log_received)
+
+    window.show()
+    return app.exec()
 
 
 @interface.command()
@@ -87,6 +156,10 @@ def cli(ip_port, ip_port_next, verbose):
 
     rootLogger.setLevel(logging.DEBUG)
 
+    start_node(node_id, ip, port, ip_next, port_next, leader)
+
+
+def start_node(node_id, ip, port, ip_next, port_next, leader):
     # create node
     global node
     node = Node(node_id, ip, ip_next, port, port_next, node_id)
@@ -155,18 +228,33 @@ def cli(ip_port, ip_port_next, verbose):
 
 
 def info_print(msg=''):
-    global rootLogger
-    rootLogger.info(msg)
+    if not gui:
+        global rootLogger
+        rootLogger.info(msg)
+    else:
+        global node
+        if node is not None:
+            node.signal_log_message.emit(msg)
 
 
 def debug_print(msg=''):
-    global rootLogger
-    rootLogger.debug(msg)
+    if not gui:
+        global rootLogger
+        rootLogger.debug(msg)
+    else:
+        global node
+        if node is not None:
+            node.signal_log_message.emit(msg)
 
 
 def error_print(msg=''):
-    global rootLogger
-    rootLogger.error(msg)
+    if not gui:
+        global rootLogger
+        rootLogger.error(msg)
+    else:
+        global node
+        if node is not None:
+            node.signal_log_message.emit(msg)
 
 
 def send_message(node_name):
@@ -215,9 +303,11 @@ class MessageHandler(socketserver.BaseRequestHandler):
             node.queue.put(message)
 
 
-class Node:
-    def __init__(self, node_id, ip, ip_next, port, port_next, name):
-
+class Node(QObject):
+    signal_message = pyqtSignal(str,  name='msg')
+    signal_log_message = pyqtSignal(str,  name='log')
+    def __init__(self, node_id, ip, ip_next, port, port_next, name, window = None):
+        QObject.__init__(self)
         self.id = node_id
         self.state = 'DISCONNECTED'
         self.ip = ip
@@ -234,6 +324,7 @@ class Node:
         self.server = Server(id, ip, port)
         self.client = Client(id, 'CONNECTING', '')
         self.pinger = Pinger()
+        self.window = window
 
     def debug(self, message):
         if verbose_level > 0:
@@ -247,7 +338,7 @@ class Node:
             debug_print("IP:port: " + self.ip + ":" + self.port)
             debug_print("IP_next:port_next: " + self.ip_next + ":" + self.port_next)
             debug_print("Message: ")
-            debug_print(message)
+            debug_print(str(message))
             debug_print("***************")
 
     def increment_clock(self):
@@ -374,10 +465,14 @@ class Client(threading.Thread):
                 return
 
     def display_message(self, msg):
-        sys.stdout.write('\n')
-        sys.stdout.write('\r!!! NEW MESSAGE ARRIVED !!!\n')
-        sys.stdout.write("\r"+msg+"\n")
-        sys.stdout.write('\r')
+        if not gui:
+            sys.stdout.write('\n')
+            sys.stdout.write('\r!!! NEW MESSAGE ARRIVED !!!\n')
+            sys.stdout.write("\r"+msg+"\n")
+            sys.stdout.write('\r')
+        else:
+            global node
+            node.signal_message.emit(msg)
 
     def initiate_voting(self):
         global node
