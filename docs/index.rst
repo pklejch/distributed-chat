@@ -10,6 +10,10 @@ Welcome to distributed-chat's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   about
+   setupguide
+   using
+   howitworks
 
 
 Indices and tables

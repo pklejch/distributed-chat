@@ -58,7 +58,7 @@
              <x>0</x>
              <y>0</y>
              <width>758</width>
-             <height>149</height>
+             <height>121</height>
             </rect>
            </property>
            <layout class="QGridLayout" name="gridLayout">
@@ -112,6 +112,13 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="chck_encrypt">
+          <property name="text">
+           <string>Encrypt message</string>
           </property>
          </widget>
         </item>

@@ -9,6 +9,8 @@ import time
 import tty
 import sys
 import termios
+import configparser
+from cryptography.fernet import Fernet
 
 from queue import Queue
 
@@ -48,13 +50,35 @@ def validate_ip(ctx, param, value):
 def send_message_from_qui(window):
     node_id = window.findChild(QtWidgets.QLineEdit,'node_id').text()
     msg = window.findChild(QtWidgets.QPlainTextEdit, 'message').toPlainText()
+    window.findChild(QtWidgets.QPlainTextEdit, 'message').clear()
+    encrypt = window.findChild(QtWidgets.QCheckBox, 'chck_encrypt').isChecked()
 
-    new_msg = node.client.create_message('MSG', node.name + " says: " + msg)
+
+    if encrypt:
+        try:
+            cipher_key = node.keys[node_id]
+        except KeyError:
+            QtWidgets.QMessageBox.critical(window, "Missing key.",
+                                           "You don't have key for target recipient. "
+                                           "Add key in keys.cfg configuration file.",
+                                           QtWidgets.QMessageBox.Close)
+            return
+        cipher = Fernet(cipher_key)
+        message = node.name + " says: " + msg
+        encrypted_message = cipher.encrypt((message).encode('utf-8'))
+        new_msg = node.client.create_message('MSG', encrypted_message)
+        new_msg['encrypted'] = True
+    else:
+        new_msg = node.client.create_message('MSG', node.name + " says: " + msg)
 
     # replace target
     new_msg['to'] = node_id
     node.client.send_data(pickle.dumps(new_msg, -1))
 
+def read_config(config):
+    keys_config = configparser.ConfigParser()
+    keys_config.read(config)
+    return keys_config['keys']
 
 class QPlainTextEditLogger(logging.StreamHandler):
     def __init__(self, window):
@@ -105,6 +129,9 @@ def gui():
         node.state = 'ALONE'
         node.leader = True
         node.leader_id = node_id
+
+    # TODO path as parameter
+    node.keys = read_config('keys.cfg')
 
     try:
         node.start()
@@ -325,6 +352,7 @@ class Node(QObject):
         self.client = Client(id, 'CONNECTING', '')
         self.pinger = Pinger()
         self.window = window
+        self.keys = None
 
     def debug(self, message):
         if verbose_level > 0:
@@ -427,7 +455,8 @@ class Client(threading.Thread):
                 'state':  state,
                 'body': body,
                 'at_leader': False,
-                'clock': node.clock
+                'clock': node.clock,
+                'encrypted': False
             }
         else:
             message = {
@@ -436,7 +465,8 @@ class Client(threading.Thread):
                 'state':  state,
                 'body': body,
                 'at_leader': False,
-                'clock': node.increment_clock()
+                'clock': node.increment_clock(),
+                'encrypted': False
             }
 
         return message
@@ -464,14 +494,19 @@ class Client(threading.Thread):
                 self.close_socket()
                 return
 
-    def display_message(self, msg):
+    def display_message(self, msg, encrypted=False):
+        global node
+        if encrypted:
+            cipher_key = node.keys[node.name]
+            cipher = Fernet(cipher_key)
+            msg = (cipher.decrypt(msg)).decode('utf-8')
+
         if not gui:
             sys.stdout.write('\n')
             sys.stdout.write('\r!!! NEW MESSAGE ARRIVED !!!\n')
             sys.stdout.write("\r"+msg+"\n")
             sys.stdout.write('\r')
         else:
-            global node
             node.signal_message.emit(msg)
 
     def initiate_voting(self):
@@ -542,7 +577,10 @@ class Client(threading.Thread):
             if node.leader:
                 # if its message for me, display it
                 if message['to'] == node.id or message['to'] == node.name:
-                    self.display_message(message['body'])
+                    if message['encrypted']:
+                        self.display_message(message['body'], True)
+                    else:
+                        self.display_message(message['body'])
                 # if its message for unknown user
                 elif message['at_leader']:
                     debug_print("NONEXISTENT USER, destroying message...")
@@ -553,7 +591,10 @@ class Client(threading.Thread):
             else:
                 # if it is message for me and it already passed through leader, display it
                 if (message['to'] == node.id or message['to'] == node.name) and message['at_leader']:
-                    self.display_message(message['body'])
+                    if message['encrypted']:
+                        self.display_message(message['body'], True)
+                    else:
+                        self.display_message(message['body'])
                 # if its not for me, just pass it to next node
                 else:
                     self.send_data(pickle.dumps(message, -1))
