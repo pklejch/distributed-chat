@@ -77,20 +77,14 @@ def send_message_from_qui(window):
 
 def read_config(config):
     keys_config = configparser.ConfigParser()
-    keys_config.read(config)
-    return keys_config['keys']
-
-class QPlainTextEditLogger(logging.StreamHandler):
-    def __init__(self, window):
-        super().__init__()
-        self.window = window
-
-    @pyqtSlot(str)
-    def emit(self, record):
-        msg = self.format(record)
-        recv_messages = self.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
-        recv_messages.appendPlainText(msg)
-
+    if config is not None:
+        try:
+            keys_config.read(config)
+            return keys_config['keys']
+        except KeyError:
+            return None
+    else:
+        return None
 
 @pyqtSlot(str, name='msg')
 def message_received(msg):
@@ -101,6 +95,13 @@ def message_received(msg):
 def log_received(msg):
     recv_messages = node.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
     recv_messages.appendPlainText(msg)
+
+@pyqtSlot(int, name='error')
+def missing_key(err_code):
+        QtWidgets.QMessageBox.critical(node.window, "Missing key.",
+                                       "Someone send you a message encrypted with key you don't have. "
+                                       "Add your key in keys.cfg configuration file.",
+                                       QtWidgets.QMessageBox.Close)
 
 @click.group()
 def interface():
@@ -115,7 +116,7 @@ def gui():
     gui = True
     from gui import gui_main
     from PyQt5 import QtWidgets
-    [app, window, ip, port, ip_next, port_next, leader, name] = gui_main()
+    [app, window, ip, port, ip_next, port_next, leader, name, keys_file] = gui_main()
     node_id = hashlib.sha224((ip + ":" + port).encode('ascii')).hexdigest()
 
 
@@ -130,8 +131,13 @@ def gui():
         node.leader = True
         node.leader_id = node_id
 
-    # TODO path as parameter
-    node.keys = read_config('keys.cfg')
+
+    # read configuration file with keys
+    node.keys = read_config(keys_file)
+
+    # if no keys file was specified, disable encryption option
+    if node.keys is None:
+        window.findChild(QtWidgets.QCheckBox, 'chck_encrypt').setEnabled(False)
 
     try:
         node.start()
@@ -142,18 +148,21 @@ def gui():
     btn = window.findChild(QtWidgets.QPushButton,'button_send')
     btn.clicked.connect(lambda: send_message_from_qui(window))
 
+
+
     node.signal_message.connect(message_received)
     node.signal_log_message.connect(log_received)
+    node.signal_error.connect(missing_key)
 
     window.show()
     return app.exec()
 
 
 @interface.command()
-@click.argument("ip_port",  callback=validate_ip)
-@click.option("--ip_port_next", "-i", help="Ip and port.", callback=validate_ip)
-@click.option('--verbose', '-v', count="True", help='Enables verbose output.')
-def cli(ip_port, ip_port_next, verbose):
+@click.argument("ip_port",  callback = validate_ip)
+@click.option("--ip_port_next", "-i", help = "Ip and port.", callback = validate_ip)
+@click.option('--verbose', '-v', count = True, help='Enables verbose output.')
+def cli(ip_port, ip_port_next, verbose, encrypt):
     global verbose_level
     global rootLogger
     verbose_level = verbose
@@ -333,6 +342,7 @@ class MessageHandler(socketserver.BaseRequestHandler):
 class Node(QObject):
     signal_message = pyqtSignal(str,  name='msg')
     signal_log_message = pyqtSignal(str,  name='log')
+    signal_error = pyqtSignal(int, name='error')
     def __init__(self, node_id, ip, ip_next, port, port_next, name, window = None):
         QObject.__init__(self)
         self.id = node_id
@@ -497,9 +507,12 @@ class Client(threading.Thread):
     def display_message(self, msg, encrypted=False):
         global node
         if encrypted:
-            cipher_key = node.keys[node.name]
-            cipher = Fernet(cipher_key)
-            msg = (cipher.decrypt(msg)).decode('utf-8')
+            try:
+                cipher_key = node.keys[node.name]
+                cipher = Fernet(cipher_key)
+                msg = (cipher.decrypt(msg)).decode('utf-8')
+            except KeyError:
+                node.signal_error.emit(1)
 
         if not gui:
             sys.stdout.write('\n')

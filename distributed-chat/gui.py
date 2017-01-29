@@ -1,5 +1,17 @@
 from PyQt5 import QtWidgets, uic
 
+
+def load_keys_file(window):
+    result = QtWidgets.QFileDialog.getOpenFileName(window)
+    filepath = result[0]
+
+
+    # save file path
+    if filepath != '':
+        window.keys_file = filepath
+
+
+
 def gui_main():
     app = QtWidgets.QApplication([])
 
@@ -17,10 +29,16 @@ def gui_main():
     with open('startnode.ui') as f:
         uic.loadUi(f, dialog)
 
+
+
+    btn = window.findChild(QtWidgets.QPushButton,'btn_keys')
+    btn.clicked.connect(lambda: load_keys_file(window))
+
     # Zobrazíme dialog.
     # Funkce exec zajistí modalitu (tj.  tzn. nejde ovládat zbytek aplikace,
     # dokud je dialog zobrazen), a vrátí se až potom, co uživatel dialog zavře.
     result = dialog.exec()
+
 
 
     # Výsledná hodnota odpovídá tlačítku/způsobu, kterým uživatel dialog zavřel.
@@ -47,4 +65,7 @@ def gui_main():
         name = dialog.findChild(QtWidgets.QLineEdit, 'name').text()
 
 
-    return [app, window, str(ip), str(port), str(ip_next), str(port_next), leader, name]
+    if hasattr(window, 'keys_file'):
+        return [app, window, str(ip), str(port), str(ip_next), str(port_next), leader, name, window.keys_file]
+    else:
+        return [app, window, str(ip), str(port), str(ip_next), str(port_next), leader, name, None]
