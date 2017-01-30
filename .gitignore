@@ -93,3 +93,4 @@ ENV/
 
 # log files
 *.log
+keys2.cfg

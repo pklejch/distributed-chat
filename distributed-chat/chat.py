@@ -37,22 +37,20 @@ def create_id(ip, port):
 
 
 def validate_ip(ctx, param, value):
-
     if value is None:
         return
-
     try:
         _, _ = value.split(":")
         return value
     except ValueError:
         raise click.BadParameter("IP and port must be in the following format: <ip/hostname>:<port>")
 
+
 def send_message_from_qui(window):
     node_id = window.findChild(QtWidgets.QLineEdit,'node_id').text()
     msg = window.findChild(QtWidgets.QPlainTextEdit, 'message').toPlainText()
     window.findChild(QtWidgets.QPlainTextEdit, 'message').clear()
     encrypt = window.findChild(QtWidgets.QCheckBox, 'chck_encrypt').isChecked()
-
 
     if encrypt:
         try:
@@ -75,6 +73,7 @@ def send_message_from_qui(window):
     new_msg['to'] = node_id
     node.client.send_data(pickle.dumps(new_msg, -1))
 
+
 def read_config(config):
     keys_config = configparser.ConfigParser()
     if config is not None:
@@ -86,14 +85,17 @@ def read_config(config):
     else:
         return None
 
+
 @pyqtSlot(str, name='msg')
 def message_received(msg):
     recv_messages = node.window.findChild(QtWidgets.QPlainTextEdit, 'recv_messages')
     recv_messages.appendPlainText(msg)
 
+
 @pyqtSlot(str, name='log')
 def log_received(msg):
     recv_messages = node.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
+
     recv_messages.appendPlainText(msg)
 
 @pyqtSlot(int, name='error')
@@ -102,6 +104,7 @@ def missing_key(err_code):
                                        "Someone send you a message encrypted with key you don't have. "
                                        "Add your key in keys.cfg configuration file.",
                                        QtWidgets.QMessageBox.Close)
+
 
 @click.group()
 def interface():
@@ -119,7 +122,6 @@ def gui():
     [app, window, ip, port, ip_next, port_next, leader, name, keys_file] = gui_main()
     node_id = hashlib.sha224((ip + ":" + port).encode('ascii')).hexdigest()
 
-
     # create node
     global node
     node = Node(node_id, ip, ip_next, port, port_next, node_id, window)
@@ -130,7 +132,6 @@ def gui():
         node.state = 'ALONE'
         node.leader = True
         node.leader_id = node_id
-
 
     # read configuration file with keys
     node.keys = read_config(keys_file)
@@ -145,10 +146,8 @@ def gui():
         error_print("Error while starting node.")
         exit(1)
 
-    btn = window.findChild(QtWidgets.QPushButton,'button_send')
+    btn = window.findChild(QtWidgets.QPushButton, 'button_send')
     btn.clicked.connect(lambda: send_message_from_qui(window))
-
-
 
     node.signal_message.connect(message_received)
     node.signal_log_message.connect(log_received)
@@ -159,10 +158,10 @@ def gui():
 
 
 @interface.command()
-@click.argument("ip_port",  callback = validate_ip)
-@click.option("--ip_port_next", "-i", help = "Ip and port.", callback = validate_ip)
-@click.option('--verbose', '-v', count = True, help='Enables verbose output.')
-def cli(ip_port, ip_port_next, verbose, encrypt):
+@click.argument("ip_port",  callback=validate_ip)
+@click.option("--ip_port_next", "-i", help="Ip and port.", callback=validate_ip)
+@click.option('--verbose', '-v', count=True, help='Enables verbose output.')
+def cli(ip_port, ip_port_next, verbose):
     global verbose_level
     global rootLogger
     verbose_level = verbose
@@ -343,7 +342,8 @@ class Node(QObject):
     signal_message = pyqtSignal(str,  name='msg')
     signal_log_message = pyqtSignal(str,  name='log')
     signal_error = pyqtSignal(int, name='error')
-    def __init__(self, node_id, ip, ip_next, port, port_next, name, window = None):
+
+    def __init__(self, node_id, ip, ip_next, port, port_next, name, window=None):
         QObject.__init__(self)
         self.id = node_id
         self.state = 'DISCONNECTED'
@@ -513,6 +513,7 @@ class Client(threading.Thread):
                 msg = (cipher.decrypt(msg)).decode('utf-8')
             except KeyError:
                 node.signal_error.emit(1)
+                return
 
         if not gui:
             sys.stdout.write('\n')
