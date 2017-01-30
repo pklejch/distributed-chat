@@ -1,7 +1,7 @@
 from PyQt5.QtCore import pyqtSignal, QObject
 import threading
 from queue import Queue
-from distributedchat.functions import debug_print
+import distributedchat.functions
 import distributedchat.settings
 from distributedchat.server import Server
 from distributedchat.pinger import Pinger
@@ -45,18 +45,18 @@ class Node(QObject):
         :param message: Incoming message to be printed.
         """
         if distributedchat.settings.verbose_level > 0:
-            debug_print("***************")
-            debug_print("Timestamp: " + str(self.clock))
-            debug_print("ID: " + str(self.id))
-            debug_print("Name: " + self.name)
-            debug_print("Status: " + self.state)
-            debug_print("Leader: " + str(self.leader))
-            debug_print("Leader ID: " + str(self.leader_id))
-            debug_print("IP:port: " + self.ip + ":" + self.port)
-            debug_print("IP_next:port_next: " + self.ip_next + ":" + self.port_next)
-            debug_print("Message: ")
-            debug_print(str(message))
-            debug_print("***************")
+            distributedchat.functions.debug_print("***************")
+            distributedchat.functions.debug_print("Timestamp: " + str(self.clock))
+            distributedchat.functions.debug_print("ID: " + str(self.id))
+            distributedchat.functions.debug_print("Name: " + self.name)
+            distributedchat.functions.debug_print("Status: " + self.state)
+            distributedchat.functions.debug_print("Leader: " + str(self.leader))
+            distributedchat.functions.debug_print("Leader ID: " + str(self.leader_id))
+            distributedchat.functions.debug_print("IP:port: " + self.ip + ":" + self.port)
+            distributedchat.functions.debug_print("IP_next:port_next: " + self.ip_next + ":" + self.port_next)
+            distributedchat.functions.debug_print("Message: ")
+            distributedchat.functions.debug_print(str(message))
+            distributedchat.functions.debug_print("***************")
 
     def increment_clock(self):
         """

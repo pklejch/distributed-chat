@@ -33,7 +33,6 @@ setup(
         ],
     },
     package_data={
-        'issuelabeler': ['keys.conf']
+        'issuelabeler': ['keys.conf','main.ui','startnode.ui']
     },
-    #include_package_data=True,
 )
