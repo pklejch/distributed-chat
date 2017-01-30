@@ -1,49 +1,50 @@
 from PyQt5 import QtWidgets, uic
+import os
 
+
+def getDir():
+    """
+    This function returns directory (as a string) from which is run this tool. It is used as prefix for file path of configuration files.
+    :return:
+    String with absolute path of directory from which is this tool run.
+    """
+    return str(os.path.abspath(os.path.dirname(__file__)))
 
 def load_keys_file(window):
+    # get filename from dialog
     result = QtWidgets.QFileDialog.getOpenFileName(window)
     filepath = result[0]
 
-
-    # save file path
+    # save file path if it isnt empty
     if filepath != '':
         window.keys_file = filepath
 
 
-
 def gui_main():
+    directory = getDir()
+
     app = QtWidgets.QApplication([])
 
     window = QtWidgets.QMainWindow()
 
-    with open('main.ui') as f:
+    # create init dialog with settings
+    with open(directory + '/main.ui') as f:
         uic.loadUi(f, window)
-
-    # Vytvoříme nový dialog.
-    # V dokumentaci mají dialogy jako argument `this`;
-    # jde o "nadřazené" okno
     dialog = QtWidgets.QDialog(window)
 
-    # Načteme layout z Qt Designeru
-    with open('startnode.ui') as f:
+    with open(directory + '/startnode.ui') as f:
         uic.loadUi(f, dialog)
 
-
-
+    # connect function with onlick event
     btn = window.findChild(QtWidgets.QPushButton,'btn_keys')
     btn.clicked.connect(lambda: load_keys_file(window))
 
-    # Zobrazíme dialog.
-    # Funkce exec zajistí modalitu (tj.  tzn. nejde ovládat zbytek aplikace,
-    # dokud je dialog zobrazen), a vrátí se až potom, co uživatel dialog zavře.
+    # display dialog window
     result = dialog.exec()
 
-
-
-    # Výsledná hodnota odpovídá tlačítku/způsobu, kterým uživatel dialog zavřel.
+    # get the result of a window
     if result == QtWidgets.QDialog.Rejected:
-        # Dialog uživatel zavřel nebo klikl na Cancel
+        # dialog was exited
         QtWidgets.QMessageBox.critical(window, "Error", "You have to specify IP and port.", QtWidgets.QMessageBox.Close)
         exit(1)
     else:
@@ -62,6 +63,7 @@ def gui_main():
             ip_next = dialog.findChild(QtWidgets.QLineEdit, 'ip_next').text()
             port_next = dialog.findChild(QtWidgets.QSpinBox, 'port_next').value()
 
+        # set name of the node
         name = dialog.findChild(QtWidgets.QLineEdit, 'name').text()
 
 
