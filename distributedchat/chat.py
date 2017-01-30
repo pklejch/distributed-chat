@@ -54,7 +54,7 @@ def gui():
     # try to start node, otherwise exit
     try:
         distributedchat.settings.node.start()
-    except:
+    except (OSError, ConnectionRefusedError):
         distributedchat.functions.error_print("Error while starting node.")
         exit(1)
 
@@ -62,10 +62,17 @@ def gui():
     btn = window.findChild(QtWidgets.QPushButton, 'button_send')
     btn.clicked.connect(lambda: distributedchat.functions.send_message_from_qui(window))
 
+    btn_scan = window.findChild(QtWidgets.QPushButton, 'btn_scan')
+    btn_scan.clicked.connect(lambda: distributedchat.functions.scan_network_for_users())
+
+    user_list = distributedchat.settings.node.window.findChild(QtWidgets.QListWidget, 'users')
+    user_list.itemSelectionChanged.connect(distributedchat.functions.select_user)
+
     # connect signals with functions
     distributedchat.settings.node.signal_message.connect(distributedchat.functions.message_received)
     distributedchat.settings.node.signal_log_message.connect(distributedchat.functions.log_received)
     distributedchat.settings.node.signal_error.connect(distributedchat.functions.missing_key)
+    distributedchat.settings.node.signal_scan.connect(distributedchat.functions.print_users)
 
     window.show()
     return app.exec()

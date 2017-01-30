@@ -20,8 +20,8 @@
    <string>Distributed chat</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
+   <layout class="QGridLayout" name="gridLayout_2">
+    <item row="0" column="0">
      <widget class="QTabWidget" name="tabWidget">
       <property name="currentIndex">
        <number>0</number>
@@ -30,18 +30,15 @@
        <attribute name="title">
         <string>Chat</string>
        </attribute>
-       <layout class="QVBoxLayout" name="verticalLayout_2">
-        <item>
-         <widget class="QLabel" name="label_3">
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="1">
+         <widget class="QLabel" name="label_4">
           <property name="text">
-           <string>Received messa&amp;ges</string>
-          </property>
-          <property name="buddy">
-           <cstring>recv_messages</cstring>
+           <string>Connected users</string>
           </property>
          </widget>
         </item>
-        <item>
+        <item row="1" column="0">
          <widget class="QScrollArea" name="scrollArea">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
@@ -57,8 +54,8 @@
             <rect>
              <x>0</x>
              <y>0</y>
-             <width>758</width>
-             <height>121</height>
+             <width>496</width>
+             <height>115</height>
             </rect>
            </property>
            <layout class="QGridLayout" name="gridLayout">
@@ -82,20 +79,7 @@
           </widget>
          </widget>
         </item>
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Send message &amp;to</string>
-          </property>
-          <property name="buddy">
-           <cstring>node_id</cstring>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLineEdit" name="node_id"/>
-        </item>
-        <item>
+        <item row="4" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
            <string>Message</string>
@@ -105,7 +89,7 @@
           </property>
          </widget>
         </item>
-        <item>
+        <item row="5" column="0">
          <widget class="QPlainTextEdit" name="message">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -115,14 +99,54 @@
           </property>
          </widget>
         </item>
-        <item>
+        <item row="6" column="0">
          <widget class="QCheckBox" name="chck_encrypt">
           <property name="text">
            <string>Encrypt message</string>
           </property>
          </widget>
         </item>
-        <item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="text">
+           <string>Received messa&amp;ges</string>
+          </property>
+          <property name="buddy">
+           <cstring>recv_messages</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1" rowspan="7">
+         <widget class="QListWidget" name="users">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>Send message &amp;to</string>
+          </property>
+          <property name="buddy">
+           <cstring>node_id</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="0">
+         <widget class="QLineEdit" name="node_id"/>
+        </item>
+        <item row="8" column="1">
+         <widget class="QPushButton" name="btn_scan">
+          <property name="text">
+           <string>Scan network for users</string>
+          </property>
+         </widget>
+        </item>
+        <item row="8" column="0">
          <widget class="QPushButton" name="button_send">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -206,7 +230,6 @@
   <tabstop>recv_messages</tabstop>
   <tabstop>node_id</tabstop>
   <tabstop>message</tabstop>
-  <tabstop>button_send</tabstop>
   <tabstop>scrollArea_2</tabstop>
   <tabstop>logs</tabstop>
  </tabstops>

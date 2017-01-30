@@ -12,6 +12,7 @@ class Node(QObject):
     signal_message = pyqtSignal(str,  name='msg')
     signal_log_message = pyqtSignal(str,  name='log')
     signal_error = pyqtSignal(int, name='error')
+    signal_scan = pyqtSignal(str, name='users')
 
     def __init__(self, node_id, ip, ip_next, port, port_next, name, window=None):
         QObject.__init__(self)

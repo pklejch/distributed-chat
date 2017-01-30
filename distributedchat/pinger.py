@@ -22,7 +22,7 @@ class Pinger(threading.Thread):
             # try to send PING message
             try:
                 distributedchat.settings.node.client.send_data(pickle.dumps(p, -1))
-            except:
+            except (OSError, ConnectionRefusedError):
                 pass
 
             # sleep
@@ -36,7 +36,7 @@ class Pinger(threading.Thread):
                 try:
                     distributedchat.settings.node.client.send_data(pickle.dumps(dead_message, -1))
                 # next node is dead, im alone
-                except:
+                except (OSError, ConnectionRefusedError):
                     distributedchat.settings.node.queue.put(dead_message)
                 self.errors = 0
             # there is something in the ping queue, node behind us is alive

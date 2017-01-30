@@ -62,7 +62,7 @@ class Client(threading.Thread):
         message = self.create_message(self.state, self.body)
         try:
             self.send_data(pickle.dumps(message, -1))
-        except:
+        except (OSError, ConnectionRefusedError):
             # cannot init connect
             distributedchat.functions.error_print("Cant connect to target node, perhaps target node is not running.")
             distributedchat.settings.error = 1
@@ -241,7 +241,7 @@ class Client(threading.Thread):
             # try to send it to the next node
             try:
                 self.send_data(pickle.dumps(message, -1))
-            except:
+            except (OSError, ConnectionRefusedError):
                 # my next node is dead, repair connection
                 ip_port = message['body']
                 ip, port = ip_port.split(":")
@@ -258,6 +258,15 @@ class Client(threading.Thread):
                 distributedchat.functions.debug_print('Connection repaired.')
                 distributedchat.functions.debug_print('Initiate voting new leader.')
             self.initiate_voting()
+
+        elif message['state'] == 'SCAN':
+            if message['to'] == distributedchat.settings.node.id:
+                distributedchat.settings.node.signal_scan.emit(message['body'])
+            else:
+                users = message['body']
+                users += distributedchat.settings.node.name + ";"
+                message['body'] = users
+                self.send_data(pickle.dumps(message, -1))
 
         # received election message
         elif message['state'] == 'ELECTION':

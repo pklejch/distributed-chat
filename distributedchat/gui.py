@@ -68,6 +68,9 @@ def gui_main():
         # set name of the node
         name = dialog.findChild(QtWidgets.QLineEdit, 'name').text()
 
+    # set the title of the window
+    window.setWindowTitle("Distributed chat | Node name: " + name)
+
     if hasattr(window, 'keys_file'):
         return [app, window, str(ip), str(port), str(ip_next), str(port_next), leader, name, window.keys_file]
     else:

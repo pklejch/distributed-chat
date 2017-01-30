@@ -4,6 +4,7 @@ import time
 import pickle
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import Qt
 import configparser
 import distributedchat.cnode
 import click
@@ -24,7 +25,7 @@ def start_node(node_id, ip, port, ip_next, port_next, leader):
     # try to start node, otherwise exit
     try:
         distributedchat.settings.node.start()
-    except:
+    except (OSError, ConnectionRefusedError):
         error_print("Error while starting node.")
         exit(1)
 
@@ -176,6 +177,24 @@ def send_message_from_qui(window):
     distributedchat.settings.node.client.send_data(pickle.dumps(new_msg, -1))
 
 
+def scan_network_for_users():
+    scan_message = distributedchat.settings.node.client.create_message('SCAN', '')
+    scan_message['to'] = distributedchat.settings.node.id
+
+    # send message
+    distributedchat.settings.node.client.send_data(pickle.dumps(scan_message, -1))
+
+
+def select_user():
+    users = distributedchat.settings.node.window.findChild(QtWidgets.QListWidget, 'users').selectedItems()
+    selected_user = None
+
+    for user in users:
+        selected_user = user.data(Qt.DisplayRole)
+
+    distributedchat.settings.node.window.findChild(QtWidgets.QLineEdit, 'node_id').setText(selected_user)
+
+
 def read_config(config):
     keys_config = configparser.ConfigParser()
     if config is not None:
@@ -187,6 +206,16 @@ def read_config(config):
     else:
         return None
 
+@pyqtSlot(str, name='users')
+def print_users(users):
+    list = distributedchat.settings.node.window.findChild(QtWidgets.QListWidget, 'users')
+    list.clear()
+    users = sorted(users.split(';'))
+
+    for user in users:
+        if user != '':
+            list.addItem(QtWidgets.QListWidgetItem(user))
+
 
 @pyqtSlot(str, name='msg')
 def message_received(msg):
@@ -197,7 +226,6 @@ def message_received(msg):
 @pyqtSlot(str, name='log')
 def log_received(msg):
     recv_messages = distributedchat.settings.node.window.findChild(QtWidgets.QPlainTextEdit, 'logs')
-
     recv_messages.appendPlainText(msg)
 
 

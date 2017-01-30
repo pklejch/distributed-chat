@@ -25,7 +25,7 @@ class Server(threading.Thread):
         # start server
         try:
             self.socket = socketserver.ThreadingTCPServer((self.ip, self.port), distributedchat.message.MessageHandler)
-        except OSError:
+        except (OSError, ConnectionRefusedError):
             distributedchat.functions.error_print("Cannot start server, perhaps port is in use.")
             distributedchat.settings.error = 1
         try:
