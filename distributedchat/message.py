@@ -5,8 +5,14 @@ import distributedchat.functions
 
 
 class MessageHandler(socketserver.BaseRequestHandler):
-
+    """
+    This class is used for handling incoming messages.
+    """
     def handle(self):
+        """
+        This function will process incoming messages.
+        It unpickles them and stores them in to the right queue.
+        """
         data = self.request.recv(4096)
         if len(data) == 0:
             return

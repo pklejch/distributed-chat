@@ -6,6 +6,10 @@ import distributedchat.message
 
 
 class Server(threading.Thread):
+    """
+    This class is used as server of the node.
+    It listens on specified IP and port and handling incoming messages.
+    """
     allow_reuse_address = True
 
     def __init__(self, node_id, ip, port):
@@ -18,6 +22,9 @@ class Server(threading.Thread):
         self._create_socket()
 
     def _create_socket(self):
+        """
+        This function will create server and starts listening for incoming packets.
+        """
         if distributedchat.settings.verbose_level > 0:
             distributedchat.functions.debug_print("Starting server on: "+self.ip+":"+str(self.port))
         socketserver.ThreadingTCPServer.allow_reuse_address = True
@@ -34,6 +41,9 @@ class Server(threading.Thread):
             pass
 
     def run(self):
+        """
+        Main function of server thread.
+        """
         try:
             self.socket.serve_forever()
         except AttributeError:

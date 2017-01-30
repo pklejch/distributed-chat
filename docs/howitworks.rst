@@ -1,4 +1,4 @@
-How distributed=chat works
+How distributed-chat works
 ==========================
 
 Cílem této semestrální práce bylo vytvořit distribuovaný symetrický

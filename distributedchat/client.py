@@ -9,6 +9,9 @@ from cryptography.fernet import Fernet
 
 
 class Client(threading.Thread):
+    """
+    This class represents client thread, it fetches messages from queue and then process them.
+    """
     def __init__(self, node_id, state, body):
         threading.Thread.__init__(self)
         self.name = 'Client'
@@ -19,17 +22,38 @@ class Client(threading.Thread):
         self.socket = None
 
     def create_socket(self):
+        """
+        This function will create IPv4 TCP socket and then connects to the next node.
+        """
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((distributedchat.settings.node.ip_next, int(distributedchat.settings.node.port_next)))
 
     def close_socket(self):
+        """
+        This function close created socket.
+        """
         self.socket.close()
 
     def send_data(self, data):
+        """
+        This function will send data to socket.
+
+        :param data: Data to be send.
+        """
         self.create_socket()
         self.socket.sendall(data)
 
     def create_message(self, state, body):
+        """
+        This function will create message. Message is dictionary with following properties: from, to, state,
+        body, at_leader, clock and encrypted.
+
+        :param string state: State of message, eg. MSG, PING, SCAN, etc.
+
+        :param string body: Body of message.
+
+        :return: Created message.
+        """
         if state == 'PING':
             # message is PING message, dont increment clock
             message = {
@@ -56,6 +80,11 @@ class Client(threading.Thread):
         return message
 
     def run(self):
+        """
+        This is main function of Client thread.
+
+        It fetches messages from queue and then processes them.
+        """
         time.sleep(0.5)
 
         # initial message
@@ -84,7 +113,16 @@ class Client(threading.Thread):
                 return
 
     def display_message(self, msg, encrypted=False):
+        """
+        This function will display incoming message from other node.
+        In CLI mode it just prints message into console.
 
+        In GUI mode it will emit signal for GUI thread.
+
+        :param string msg: Message to be printed.
+
+        :param bool encrypted: This value says if message is encrypted and if needs to be decrypted before printing.
+        """
         # if message arrived encrypted, try to decrypt
         if encrypted:
             try:
@@ -110,6 +148,9 @@ class Client(threading.Thread):
             distributedchat.settings.node.signal_message.emit(msg)
 
     def initiate_voting(self):
+        """
+        This function will start the Chang-Roberts algorithm for leader election.
+        """
         distributedchat.settings.node.voting = True
 
         # start Chang-Roberts algorithm
@@ -118,6 +159,13 @@ class Client(threading.Thread):
         self.send_data(pickle.dumps(voting_message, -1))
 
     def do_task(self, message):
+        """
+        This is the main processing function. Based on the information in the incoming message and inner state,
+        it decides what to do next.
+
+        :param message: Recieved message.
+        """
+
         # if recieved message was None, exit
         if message is None:
             distributedchat.functions.info_print("EXITING client")

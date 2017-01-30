@@ -9,6 +9,9 @@ from distributedchat.client import Client
 
 
 class Node(QObject):
+    """
+    This class represents main node object. Node object wraps server, client, pinger and other classes for communication.
+    """
     signal_message = pyqtSignal(str,  name='msg')
     signal_log_message = pyqtSignal(str,  name='log')
     signal_error = pyqtSignal(int, name='error')
@@ -36,6 +39,11 @@ class Node(QObject):
         self.keys = None
 
     def debug(self, message):
+        """
+        This function will print debug information about message.
+
+        :param message: Incoming message to be printed.
+        """
         if distributedchat.settings.verbose_level > 0:
             debug_print("***************")
             debug_print("Timestamp: " + str(self.clock))
@@ -51,17 +59,35 @@ class Node(QObject):
             debug_print("***************")
 
     def increment_clock(self):
+        """
+        This function implements Lamport clock. It is algorithm for logical clock in distributed system.
+        When node is sending message, it will increment his local clock.
+
+        When node receive message it will set his local clock as max(my_clock, received_clock) + 1, see :func:`set_clock`.
+
+        :return: Incremented clock counter.
+        """
         mutex = threading.Lock()
         with mutex:
             self.clock += 1
         return self.clock
 
     def set_clock(self, other_clock):
+        """
+        This function is a second part of Lamport algorithm to implement logical clock in distributed system.
+        For more information see :func:`increment_clock`.
+
+        :param other_clock: Received clock for comparison.
+        """
         mutex = threading.Lock()
         with mutex:
             self.clock = max(self.clock, other_clock) + 1
 
     def start(self):
+        """
+        This is main function of node wrapper. It start all other threads (server, client, pinger).
+        :return:
+        """
         self.server.start()
         self.client.start()
         self.pinger.start()

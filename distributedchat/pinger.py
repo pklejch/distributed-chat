@@ -5,6 +5,11 @@ import distributedchat.functions
 
 
 class Pinger(threading.Thread):
+    """
+    This class is used for checking, whether node behind me is alive.
+    It is also used for sending PING messages to the next node.
+    So the next node knows I'm alive.
+    """
     def __init__(self):
         threading.Thread.__init__(self)
         self.interval = 2
@@ -13,6 +18,10 @@ class Pinger(threading.Thread):
         self.daemon = True
 
     def run(self):
+        """
+        This is the main function of Pinger thread.
+        It receives PING messages from the queue and also sends other PING messages to the next node.
+        """
         time.sleep(1)
 
         while True:
