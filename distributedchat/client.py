@@ -7,6 +7,7 @@ import distributedchat.settings
 import distributedchat.functions
 from cryptography.fernet import Fernet
 
+
 class Client(threading.Thread):
     def __init__(self, node_id, state, body):
         threading.Thread.__init__(self)
@@ -179,7 +180,8 @@ class Client(threading.Thread):
             # if im the leader
             if distributedchat.settings.node.leader:
                 # if its message for me, display it
-                if message['to'] == distributedchat.settings.node.id or message['to'] == distributedchat.settings.node.name:
+                if message['to'] == distributedchat.settings.node.id \
+                        or message['to'] == distributedchat.settings.node.name:
                     if message['encrypted']:
                         self.display_message(message['body'], True)
                     else:
@@ -193,7 +195,8 @@ class Client(threading.Thread):
                     self.send_data(pickle.dumps(message, -1))
             else:
                 # if it is message for me and it already passed through leader, display it
-                if (message['to'] == distributedchat.settings.node.id or message['to'] == distributedchat.settings.node.name)\
+                if (message['to'] == distributedchat.settings.node.id
+                    or message['to'] == distributedchat.settings.node.name)\
                         and message['at_leader']:
                     if message['encrypted']:
                         self.display_message(message['body'], True)
@@ -265,7 +268,8 @@ class Client(threading.Thread):
                 self.send_data(pickle.dumps(message, -1))
             # if id of node who send me election message is lower then mine and im not voting, destroy his message
             # and create new election message with my ID
-            if (int(message['from'], 16) < int(distributedchat.settings.node.id, 16)) and not distributedchat.settings.node.voting:
+            if (int(message['from'], 16) < int(distributedchat.settings.node.id, 16)) \
+                    and not distributedchat.settings.node.voting:
                 voting_message = self.create_message('ELECTION', '')
                 voting_message['from'] = distributedchat.settings.node.id
                 self.send_data(pickle.dumps(voting_message, -1))

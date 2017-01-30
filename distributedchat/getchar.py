@@ -2,6 +2,7 @@ import termios
 import tty
 import sys
 
+
 class GetchUnix:
     def get_key(self):
         fd = sys.stdin.fileno()

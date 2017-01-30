@@ -7,6 +7,7 @@ from distributedchat.server import Server
 from distributedchat.pinger import Pinger
 from distributedchat.client import Client
 
+
 class Node(QObject):
     signal_message = pyqtSignal(str,  name='msg')
     signal_log_message = pyqtSignal(str,  name='log')

@@ -3,6 +3,7 @@ import pickle
 import distributedchat.settings
 import distributedchat.functions
 
+
 class MessageHandler(socketserver.BaseRequestHandler):
 
     def handle(self):
