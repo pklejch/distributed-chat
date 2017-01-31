@@ -30,7 +30,7 @@ class MessageHandler(socketserver.BaseRequestHandler):
         elif message['state'] == 'PING':
             if distributedchat.settings.verbose_level > 1:
                 distributedchat.functions.debug_print("RECEIVED PING MESSAGE from: " + message['from'])
-                distributedchat.settings.node.ping_queue.put(message)
+            distributedchat.settings.node.ping_queue.put(message)
         # some other message (MSG, CLOSE, ELECTION, ...) put in the message queue
         else:
             distributedchat.settings.node.queue.put(message)

@@ -14,6 +14,7 @@ Welcome to distributed-chat's documentation!
    setupguide
    using
    howitworks
+   distributedchat
 
 
 Indices and tables

@@ -8,15 +8,15 @@ From GitHub
 
 You can download this tool either from GitHub repository (https://github.com/pklejch/distributed-chat) as zip.
 
-Or clone it to you computer using
+Or clone it to your computer using
 
 .. code::
 
    git clone https://github.com/pklejch/distributed-chat
 
-From PYPi
+From PyPI
 .........
-You can download this tool from PYPi (https://pypi.python.org/pypi/distributedchat) in tar.gz format.
+You can download this tool from PyPI (https://pypi.python.org/pypi/distributedchat) in tar.gz format.
 
 Alternatively you can use pip tool:
 
