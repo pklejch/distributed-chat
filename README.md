@@ -10,4 +10,20 @@ Features:
   - GUI in Qt, it will also have CLI.
   - Encryption of messages.
   
+## How to build documentation
+1. Create virtual environment using: `python3.5 -m venv env`
+2. Activate virtual environment: `. env/bin/activate`
+3. Install dependencies: `python -m pip install -r requirements.txt`
+4. Change directory into docs: `cd docs`
+5. Build documentation: `make html`
+6. Open file `docs/_build/html/index.html` to view documentation.
 
+## How to run tests
+
+Run (in installed and activated virtual environment):
+
+`python setup.py test`
+
+or
+
+`pytest -v tests/test_chat.py`
