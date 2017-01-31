@@ -3,6 +3,7 @@ import pickle
 import configparser
 import click
 import hashlib
+import socket
 
 from cryptography.fernet import Fernet
 from PyQt5 import QtWidgets
@@ -199,7 +200,15 @@ def validate_ip(ctx, param, value):
     if value is None:
         return
     try:
-        _, _ = value.split(":")
+        ip, port = value.split(":")
+        try:
+            iport = int(port)
+        except ValueError:
+            raise click.BadParameter("Port must be an integer.")
+        try:
+            socket.inet_aton(ip)
+        except socket.error:
+            raise click.BadParameter("You must enter valid IP.")
         return value
     except ValueError:
         raise click.BadParameter("IP and port must be in the following format: <ip/hostname>:<port>")
