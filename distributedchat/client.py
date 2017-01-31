@@ -271,9 +271,12 @@ class Client(threading.Thread):
             elif message['to'] == next_id:
                 ip_port = message['body']
                 ip, port = ip_port.split(":")
-
                 die_msg = self.create_message('DIE', '')
-                self.send_data(pickle.dumps(die_msg, -1))
+
+                try:
+                    self.send_data(pickle.dumps(die_msg, -1))
+                except (OSError,ConnectionRefusedError):
+                    pass
 
                 distributedchat.settings.node.ip_next = ip
                 distributedchat.settings.node.port_next = port

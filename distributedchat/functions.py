@@ -81,24 +81,26 @@ def start_node(node_id, ip, port, ip_next, port_next, leader):
     # main CLI loop was interrupted
     except KeyboardInterrupt:
         print("Pressed ESC or Ctrl+C, exiting....")
-
-        # send closing message
-        end_msg = distributedchat.settings.node.client.create_message(
-            'CLOSE',
-            distributedchat.settings.node.ip_next + ":" + distributedchat.settings.node.port_next
-        )
-        end_msg['to'] = distributedchat.settings.node.id
-        distributedchat.settings.node.client.send_data(pickle.dumps(end_msg, -1))
-
-        time.sleep(2)
-        # close client thread
-        distributedchat.settings.node.queue.put(None)
-
-        # close main server thread
-        distributedchat.settings.node.server.socket.shutdown()
-        distributedchat.settings.node.server.socket.server_close()
-
+        disconnect_from_network()
         exit(0)
+
+
+def disconnect_from_network():
+    # send closing message
+    end_msg = distributedchat.settings.node.client.create_message(
+        'CLOSE',
+        distributedchat.settings.node.ip_next + ":" + distributedchat.settings.node.port_next
+    )
+    end_msg['to'] = distributedchat.settings.node.id
+    distributedchat.settings.node.client.send_data(pickle.dumps(end_msg, -1))
+
+    time.sleep(0.3)
+    # close client thread
+    distributedchat.settings.node.queue.put(None)
+
+    # close main server thread
+    distributedchat.settings.node.server.socket.shutdown()
+    distributedchat.settings.node.server.socket.server_close()
 
 
 def info_print(msg=''):

@@ -80,7 +80,9 @@ def gui():
     distributedchat.settings.node.signal_scan.connect(distributedchat.functions.print_users)
 
     window.show()
-    return app.exec()
+    ret_code = app.exec()
+    distributedchat.functions.disconnect_from_network()
+    return ret_code
 
 
 @interface.command()
