@@ -7,7 +7,7 @@ with open('README.rst') as f:
  
 setup(
     name='distributedchat',
-    version='0.9',
+    version='0.9.1',
     description='.',
     long_description=long_description,
     author='Petr Klejch',

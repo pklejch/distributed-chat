@@ -8,3 +8,4 @@ recursive-include tests .*
 prune tests/__pycache__
 recursive-include docs .*
 prune docs/_build
+include docs/Makefile
