@@ -54,8 +54,7 @@ def gui_main():
     # get the result of a window
     if result == QtWidgets.QDialog.Rejected:
         # dialog was exited
-        QtWidgets.QMessageBox.critical(window, "Error", "You have to specify IP and port.", QtWidgets.QMessageBox.Close)
-        exit(1)
+        exit(0)
     else:
         # get ip and port from dialog
         ip = dialog.findChild(QtWidgets.QLineEdit, 'ip').text()
@@ -74,6 +73,16 @@ def gui_main():
 
         # set name of the node
         name = dialog.findChild(QtWidgets.QLineEdit, 'name').text()
+
+        # check if name is viable
+        if name == "" or name is None:
+            QtWidgets.QMessageBox.critical(window, "Error", "You have to specify name of the node.",
+                                           QtWidgets.QMessageBox.Close)
+            exit(1)
+        if ';' in name:
+            QtWidgets.QMessageBox.critical(window, "Error", "Sorry your name can't contain character ';'.",
+                                           QtWidgets.QMessageBox.Close)
+            exit(1)
 
     # set the title of the window
     window.setWindowTitle("Distributed chat | Node name: " + name)

@@ -24,15 +24,15 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: Implementation :: CPython',
         ],
-    install_requires=['click>=6', 'PyQt5'],
+    install_requires=['click>=6', 'cryptography'],
     setup_requires=['pytest-runner','pytest'],
     tests_require=['pytest', 'configparser'],
     entry_points={
         'console_scripts': [
-            'distributedchat = distributedchat.chat:gui',
+            'distributedchat = distributedchat.chat:main',
         ],
     },
     package_data={
-        'issuelabeler': ['keys.conf','main.ui','startnode.ui']
+        'distributedchat': ['keys.cfg','main.ui','startnode.ui']
     },
 )

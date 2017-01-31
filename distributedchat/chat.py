@@ -26,7 +26,8 @@ def interface():
 @interface.command()
 def gui():
     """
-    Main function which start GUI and then starts node.
+    Main function which start GUI.
+    Then this function starts node.
     """
     # set settings for GUI mode
     distributedchat.settings.verbose_level = 2
@@ -51,7 +52,7 @@ def gui():
         distributedchat.settings.node.leader_id = node_id
 
     # read configuration file with keys
-        distributedchat.settings.node.keys = distributedchat.functions.read_config(keys_file)
+    distributedchat.settings.node.keys = distributedchat.functions.read_config(keys_file)
 
     # if no keys file was specified, disable encryption option
     if distributedchat.settings.node.keys is None:
