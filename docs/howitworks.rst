@@ -1,126 +1,147 @@
 How distributed-chat works
 ==========================
 
-Cílem této semestrální práce bylo vytvořit distribuovaný symetrický
-program implementující chat, který bude využívat volby vůdce (algoritmus
-Chang-Roberts) k úplnému uspořádání zpráv v systému.
+How it works
+------------
 
-Program je napsán v jazyce Python ve verzi 3, není kompatibilní s
-Pythonem verze 2. Program používá většinou standardní moduly, pro
-zpracování příkazové řádky používá modul click.
+When node is starting it gets information about IP address and port, where it will listen.
+It can be also specified IP address and port of the next node, to which will this node connects.
 
-Jak to funguje
---------------
+If this information is omitted (IP address and port of next node),
+node will connect with itself and bootstrap the network.
 
-Při startu programu se skrz parametry programu předá informace o IP
-adrese a portu, na kterém bude uzel poslouchat. Dále se uvede informace
-o IP adrese a portu, kam se bude uzel připojovat. Pokud tato informace
-není specifikována, uzel se připojí sám k sobě. Tímto způsoběm se
-inicializuje první uzel.
 
-Přidání uzlu do systému
-~~~~~~~~~~~~~~~~~~~~~~~
+Adding node in to network
+~~~~~~~~~~~~~~~~~~~~~~~~~
+Other nodes which are connecting, will form unidirectional virtual ring network.
 
-Další připojované uzly se uspořádávají do virtuálního jednosměrného
-kruhu. Tato situace by se dala popsat takto. Mějme dva navzájem
-propojené uzly A a B (A->B, B->A). Uzel C kontaktuje uzel A, že se chce
-připojit do kruhu. Uzel A tedy sdělí uzlu C informace o svém
-následníkovi, uzel A si sám nastaví svého následníka jako uzel C. Uzel C
-na základě informací obdržených od uzlu A si nastaví svého následníka na
-uzel B. Pro uzel B se následník nemění. Situace tedy po dokončení
-připojení vypadá následovně: A->C, C->B, B->A.
+The situation can be described as follows.
 
-Odebrání uzlu ze systému
-~~~~~~~~~~~~~~~~~~~~~~~~
+1. Let's have two interconnected nodes A and B (A->B, B->A).
+2. New node C will contact node A, that he want to join into a ring.
+3. Node A tells information about his successor to node C.
+4. Node A sets his next node as node C.
+5. Node C will set his next node as node B, based on the information he received from node A.
+6. For node B nothing has changed.
+7. Situation after successfully connecting is this: A->C, C->B, B->A.
 
-Pokud se uzel A rozhodl, že se chce odhlásit ze systému, zašle zprávu
-CLOSE svému následníkovi (uzel C). Tato zpráva je propagována dokud
-nedojde k uzlu (uzel B), který má uzel A jako svého následníka. Zpráva
-obsahuje informace o uzlu, který byl následník uzlu A (tedy informace o
-uzlu C). Uzel B si tedy upraví svého následníka jako uzel C. Uzel B
-následně pošle zprávu uzlu A, že je možné bezpečně ukončit činnost.
-
-Neočekávaný pád uzlu
-~~~~~~~~~~~~~~~~~~~~
-
-V systému jsou posílány průběžné zpávy PING. Každý uzel kontroluje,
-zdali uzel za ním poslal zprávu PING. Tyto zprávy se posílají každé dvě
-sekundy. Pokud uzel neobdrží zprávu PING 3x po sobě (uzel A), je uzel za
-ním ohlášen za mrtvý (uzel B). Uzel (uzel A) následně pošle zprávu
-WHO\_IS\_DEAD, který obsahuje informace o tomto uzlu (o uzlu A). Tato
-zpráva je v kruhu postupně předávána, dokud zpráva nedorazí k uzlu,
-který zprávu nemůže doručit dál (uzel C). Tento uzel (uzel C) si tedy
-nastaví svého následníka dle informací ze zprávy na uzel A.
-
-Posílání textových zpráv v systému
+Graceful exit of node from network
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pokud uzel pošle textovou zprávu jinému uzlu, je tato zpráva nejprve
-přeposílána dále, dokud nedorazí k vůdci. Vůdce označí tuto zprávu a
-následně je tato zpráva přeposílána dokud nedorazí k příjemci. Příjemce
-si zprávu poté zobrazí.
+Lets expect situation after successful connection form previous chapter (A->C, C->B, B->A).
 
-Uzel
-----
+If node A decides to leave the ring, it sends CLOSE message to his next node (node C).
+This message is forwarded until it reaches the node (node B), that has node A as his successor.
+This message contains information about successor of node A (that means information about node C).
+Node B will change his next node based on the information from the message (node C).
+Node B then sends DIE message, to node A, signaling that it is safe to leave the ring.
 
-.. figure:: uzel.png
-   :alt: Diagram uzlu
+Unexpected leave of node from network
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-   Diagram uzlu
+In the network continuous PING messages are sent. Each node checks if node behind him is sending PING messages.
+Those messages are sent each 2 seconds. If node (node A) doesn't receive PING message three times in the row,
+node behind him is presume dead (node B). Node A then sends message WHO_IS_DEAD, which contains information about node A.
+This message is forwarded in the ring, until it reaches the dead end. Last node, that is before the dead node, set his
+next node based on the information from the message (node A). Connection is then repaired.
 
-Každý uzel s skládá z několika částí: - Server - Klient - Pinger -
-Fronta zpráv - Fronta PING zpráv
+Sending text messages in the network
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+If node sends text message to the other node, this message is forwarded until it reaches the leader.
+Leader will mark this message and then is this message forwarded until it reaches target recipient.
+Recipient will display this message.
 
-Sám uzel je identifikován pomocí HASH, který je vytvořena z řetězce
-(IP:PORT). Uzel dále může mít přezdívku, která slouží např. pro snazší
-posílání textových zpráv v systému.
+
+Node representation
+-------------------
+
+.. figure:: node.png
+   :alt: Diagram of node
+
+   Diagram of node
+
+Each node consists of several parts:
+
+- Server
+- Client
+- Pinger
+- Message queue
+- PING message queue
+
+Node is identified by ID calculated as SHA hash from string IPaddress:port.
+Node can also have nickname which is used for simplified sending of text messages.
 
 Server
 ~~~~~~
+When node start is initialize server and lets him listen of specified interface.
+This server is run in separated thread. When server receives a message it creates new thread with handler function.
+This function decides what to the with message based on the type of message.
 
-Uzel při startu inicializuje server a nechá ho poslouchat na zadaném
-rozhraní. Tento server je spuštěn v samostatném vlákně. Server při
-přijetí každé zprávy vytvoří vlákno, které spustí obslužnou funkci. Tato
-funkce na základě typu zprávy rozhodne, kam bude zpráva umístěna.
+- If message is type of DIE, is puts None in the message queue.
+- If message is type of PING, it is placed into PING message queue.
+- If message is some other type, it is placed into ordinary message queue.
 
--  Pokud je to zpráva typu DIE, vlákno skončí činnost.
--  Pokud je to zpráva typu PING, je tato zpráva umístěna do fronty PING
-   zpráv.
--  Pokud je to zpráva jiného typu, je tato zpráva umístěna do běžné
-   fronty zpráv.
 
-Klient
+Client
 ~~~~~~
+Client is initialized right after server, also in the separated thread. Client in endless loop fetches messages
+from ordinary message queue.
+Fetched message is processed in function, then based on the inner state and type of message is decided what to do next and
+if some message will be sent.
 
-Klient je inicializován hned po serveru a v nekonečné smyčce vybírá
-zprávy z fronty zpráv. Vybraná zpráva z fronty je zpracována v obslužné
-funkci. Na základě typu zprávy a vnitřního stavu uzlu se rozhodne co se
-bude dělat a jestli klient pošle nějakou zprávu svému následníkovi.
+If client fetches None message, it is information that can safely exists main loop.
 
 Pinger
 ~~~~~~
+This part of node is responsible for fetching PING messages from PING message queue.
+It also checks if node behind is sending PING messages. If node being didn't send
+PING message in specified timeout, action will be taken to repair virtual ring.
 
-Tato část uzlu vybírá PING zprávy z fronty PING zpráv a kontroluje zdali
-se předchůdce neopozdil s PING zprávami. Pokud přechůdce neposlal PING
-zprávu v časovém limitu, je zahájena akce na obnovení virtuálního kruhu
-(viz výše).
+Chang-Roberts algorithm
+-----------------------
+This algorithm is run in three main events:
 
-Chang-Roberts algoritmus
-------------------------
+- New node has joined into a ring.
+- Node has disconnected from a ring.
+- Node has died.
 
-Tento algoritmus je spuštěn při třech událostech:
+The two part algorithm can be described as follows [Wiki]_:
 
--  Nový uzel se připojil do systému.
--  Uzel se odpojil ze systému.
--  Uzel neočekávaně umřel.
+1. Initially each process in the ring is marked as non-participant.
+2. A process that notices a lack of leader starts an election. It creates an election message containing its UID. It then sends this message clockwise to its neighbour.
+3. Every time a process sends or forwards an election message, the process also marks itself as a participant.
+4. When a process receives an election message it compares the UID in the message with its own UID.
 
-Logování
---------
+- If the UID in the election message is larger, the process unconditionally forwards the election message in a clockwise direction.
+- If the UID in the election message is smaller, and the process is not yet a participant, the process replaces the UID in the message with its own UID, sends the updated election message in a clockwise direction.
+- If the UID in the election message is smaller, and the process is already a participant (i.e., the process has already sent out an election message with a UID at least as large as its own UID), the process discards the election message.
+- If the UID in the incoming election message is the same as the UID of the process, that process starts acting as the leader.
 
-Všechny události jsou logovány do souboru, který se jmenuje IDuzlu.log.
-Závažné události jsou logovány také na chybový výstup. Přijaté textové
-zprávy jsou vypsány na standardní výstup.
+When a process starts acting as the leader, it begins the second stage of the algorithm.
 
-Jak moc podrobné zprávy se budou vypisovat se nastavuje pomocí přepínače
--v. Tento přepínač lze zadat vícekrát pro více podrobný výstup (-vv).
+1. The leader process marks itself as non-participant and sends an elected message to its neighbour announcing its election and UID.
+2. When a process receives an elected message, it marks itself as non-participant, records the elected UID, and forwards the elected message unchanged.
+3. When the elected message reaches the newly elected leader, the leader discards that message, and the election is over.
 
+Logging
+-------
+
+CLI mode
+~~~~~~~~
+
+All events and received messages are logged into a file which is named nodeID.log.
+Critical events are also logged into standard error output. Received text messages are printed to standard output.
+
+You can set how much detailed messages will be printed with -v option. You can enter this option multiple times
+for more verbose output.
+
+GUI mode
+~~~~~~~~
+
+In GUI mode all events are printed into separated tab called Log. You cannot select verbose level, it already set to the
+highest level.
+
+Reference
+---------
+
+   .. [Wiki] Chang-Roberts algorithm, https://en.wikipedia.org/wiki/Chang_and_Roberts_algorithm

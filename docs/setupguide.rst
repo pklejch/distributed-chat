@@ -1,5 +1,5 @@
-Jak nainstalovat a spustit
---------------------------
+How to install and run
+----------------------
 
 1. Rozbalit archiv.
 2. Přesunout se do rozbaleného archivu.

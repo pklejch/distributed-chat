@@ -1,15 +1,17 @@
-from distributedchat.getchar import GetchUnix
-import distributedchat.settings
 import time
 import pickle
+import configparser
+import click
+import hashlib
+
+from cryptography.fernet import Fernet
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtCore import Qt
-import configparser
+
+from distributedchat.getchar import GetchUnix
+import distributedchat.settings
 import distributedchat.cnode
-import click
-import hashlib
-from cryptography.fernet import Fernet
 
 
 def start_node(node_id, ip, port, ip_next, port_next, leader):
@@ -70,6 +72,7 @@ def start_node(node_id, ip, port, ip_next, port_next, leader):
             pressed_key = ord(getch.get_key())
 
             # ESC = 27, Ctrl-C = 3
+            # Enter = 13
 
             # ESC or Ctrl-C
             if pressed_key == 27 or pressed_key == 3:
@@ -86,6 +89,12 @@ def start_node(node_id, ip, port, ip_next, port_next, leader):
 
 
 def disconnect_from_network():
+    """
+    This function will notify next nodes, that this node is leaving the network. This message is then propagated,
+    until it reaches node behind me, node behind me will then update his information about his next node.
+
+    Then this function will gracefully terminate threads.
+    """
     # send closing message
     end_msg = distributedchat.settings.node.client.create_message(
         'CLOSE',
@@ -95,6 +104,7 @@ def disconnect_from_network():
     distributedchat.settings.node.client.send_data(pickle.dumps(end_msg, -1))
 
     time.sleep(0.3)
+
     # close client thread
     distributedchat.settings.node.queue.put(None)
 
@@ -184,7 +194,7 @@ def validate_ip(ctx, param, value):
 
     :param value: String to be validated.
 
-    :return: Return string if OK, otherwire raise exception.
+    :return: Return string if OK, otherwise raise exception.
     """
     if value is None:
         return
@@ -282,6 +292,7 @@ def read_config(config):
     else:
         return None
 
+
 @pyqtSlot(str, name='users')
 def print_users(users):
     """
@@ -329,6 +340,6 @@ def missing_key(err_code):
     have needed key for decryption.
     """
     QtWidgets.QMessageBox.critical(distributedchat.settings.node.window, "Missing key.",
-                                       "Someone send you a message encrypted with key you don't have. "
-                                       "Add your key in keys.cfg configuration file.",
-                                       QtWidgets.QMessageBox.Close)
+                                   "Someone send you a message encrypted with key you don't have. "
+                                   "Add your key in keys.cfg configuration file.",
+                                   QtWidgets.QMessageBox.Close)

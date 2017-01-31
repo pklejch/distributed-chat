@@ -1,6 +1,8 @@
-from PyQt5.QtCore import pyqtSignal, QObject
 import threading
 from queue import Queue
+
+from PyQt5.QtCore import pyqtSignal, QObject
+
 import distributedchat.functions
 import distributedchat.settings
 from distributedchat.server import Server

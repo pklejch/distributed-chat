@@ -1,11 +1,14 @@
 import click
 import hashlib
 import logging
-from distributedchat.cnode import Node
-from distributedchat.gui import gui_main
+
 from PyQt5 import QtWidgets
+
 import distributedchat.settings
 import distributedchat.functions
+from distributedchat.cnode import Node
+from distributedchat.gui import gui_main
+
 
 # for history in input() in CLI mode
 try:

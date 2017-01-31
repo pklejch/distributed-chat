@@ -3,9 +3,12 @@ import socket
 import time
 import pickle
 import sys
+
+from cryptography.fernet import Fernet
+
 import distributedchat.settings
 import distributedchat.functions
-from cryptography.fernet import Fernet
+
 
 
 class Client(threading.Thread):
