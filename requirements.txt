@@ -1,7 +1,5 @@
 click
 cryptography
 sphinx
-PyQt5
-queue
-socketserver
 configparser
+PyQt5

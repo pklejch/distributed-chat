@@ -77,6 +77,10 @@ def gui():
     user_list = distributedchat.settings.node.window.findChild(QtWidgets.QListWidget, 'users')
     user_list.itemSelectionChanged.connect(distributedchat.functions.select_user)
 
+    # connect function with onlick event
+    action = distributedchat.settings.node.window.findChild(QtWidgets.QAction, 'actionInfo')
+    action.triggered.connect(lambda: distributedchat.functions.show_about(window))
+
     # connect signals with functions
     distributedchat.settings.node.signal_message.connect(distributedchat.functions.message_received)
     distributedchat.settings.node.signal_log_message.connect(distributedchat.functions.log_received)

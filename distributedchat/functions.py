@@ -302,6 +302,20 @@ def read_config(config):
         return None
 
 
+def show_about(window):
+    """
+    This function will display information about this application.
+    """
+    text = """
+    This is distributed chat v0.9
+    This program is used for demonstrating chat over in virtual ring topology.
+    Author: Petr Klejch
+    Git repository: https://github.com/pklejch/distributed-chat
+    License: GPL-3.0
+    """
+    QtWidgets.QMessageBox.about(window, "About this application", text)
+
+
 @pyqtSlot(str, name='users')
 def print_users(users):
     """
